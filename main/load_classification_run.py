@@ -9,13 +9,13 @@ engine = create_engine(f"postgresql+psycopg2://postgres:{quote_plus(db_password)
 
 def load_snapshot():
     with engine.connect() as conn:
-        runs = conn.execute(text("SELECT DISTINCT run_name, count(*) FROM demo_archives GROUP BY run_name")).fetchall()
+        runs = conn.execute(text("SELECT DISTINCT run_name, count(*) FROM classification_archives GROUP BY run_name")).fetchall()
         
     if not runs:
-        print("No demo runs saved yet.")
+        print("No classification runs saved yet.")
         return
         
-    print("\n AVAILABLE DEMO RUNS:")
+    print("\n AVAILABLE CLASSIFICATION RUNS:")
     for idx, (name, count) in enumerate(runs, 1):
         print(f"{idx}. {name} ({count} fires)")
         
