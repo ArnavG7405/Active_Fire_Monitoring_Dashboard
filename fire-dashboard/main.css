@@ -1,0 +1,133 @@
+body, html { 
+    margin: 0; 
+    padding: 0; 
+    height: 100vh; 
+    font-family: 'Segoe UI', Tahoma, sans-serif; 
+    display: flex; 
+    flex-direction: column; 
+    overflow: hidden; 
+    background: #f4f4f9; 
+}
+
+/* Top Statistics Strip */
+#top-bar { 
+    flex: 0 0 auto;
+    display: flex; 
+    justify-content: space-around; 
+    align-items: center; 
+    background: #1f2937; 
+    color: white; 
+    padding: 12px 20px; 
+    font-weight: bold; 
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2); 
+    z-index: 1001; 
+}
+.stat-box { font-size: 15px; }
+.stat-box span { color: #4ade80; font-size: 18px; margin-left: 8px; }
+
+/* Secondary Filter Ribbon */
+#filter-bar {
+    flex: 0 0 auto;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 30px;
+    background: #ffffff;
+    padding: 10px 20px;
+    border-bottom: 1px solid #d1d5db;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    z-index: 1000;
+}
+.filter-group {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.filter-group label {
+    font-size: 14px;
+    font-weight: 600;
+    color: #374151;
+}
+.frp-input-container {
+    display: flex;
+    flex-direction: column;
+}
+#frp-filter {
+    width: 100px;
+    padding: 6px 10px;
+}
+#max-frp-label {
+    font-size: 11px;
+    color: #6b7280;
+    margin-top: 3px;
+    font-weight: 600;
+}
+
+/* Layout Structure */
+#dashboard-container { 
+    display: flex; 
+    flex: 1; 
+    position: relative; 
+}
+
+/* Control Panel (Map Styles) */
+#controls-panel { 
+    position: absolute; 
+    top: 15px; 
+    right: 15px; 
+    z-index: 999; 
+}
+.dropdown { 
+    padding: 8px 12px; 
+    font-size: 14px; 
+    border-radius: 6px; 
+    border: 1px solid #ccc; 
+    background: white; 
+    cursor: pointer; 
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2); 
+    outline: none; 
+}
+
+/* Side Drawer */
+#side-drawer { 
+    width: 340px; 
+    background: white; 
+    border-right: 1px solid #ddd; 
+    box-shadow: 2px 0 10px rgba(0,0,0,0.1); 
+    display: flex; 
+    flex-direction: column; 
+    z-index: 999; 
+    transform: translateX(0); 
+    transition: transform 0.3s ease; 
+    overflow-y: auto; 
+}
+#side-drawer.hidden { 
+    transform: translateX(-100%); 
+    position: absolute; 
+    height: 100%;
+}
+#close-drawer { 
+    background: #fee2e2; 
+    color: #991b1b; 
+    border: none; 
+    padding: 10px; 
+    font-weight: bold; 
+    cursor: pointer; 
+    text-align: left; 
+    border-bottom: 1px solid #ddd; 
+}
+#drawer-content { padding: 20px; font-size: 14px; line-height: 1.8; }
+.data-row { border-bottom: 1px solid #eee; padding: 8px 0; }
+.data-label { color: #6b7280; font-size: 12px; text-transform: uppercase; font-weight: bold; display: block; }
+.data-value { color: #111; font-weight: 500; font-size: 15px; }
+.tag-badge { background: #1f2937; color: white; padding: 3px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; display: inline-block; margin-top: 5px; }
+
+/* Map Container */
+#map { flex: 1; height: 100%; background: #e5e5e5; z-index: 1; }
+
+/* Legend */
+.legend { background: white; padding: 15px; line-height: 1.8em; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); }
+.legend i { width: 16px; height: 16px; float: left; margin-right: 8px; opacity: 0.9; border-radius: 50%; }
+
+/* High Contrast Invert Class */
+.high-contrast-map .leaflet-tile-pane { filter: invert(100%) hue-rotate(180deg) contrast(110%); }
