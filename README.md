@@ -93,10 +93,15 @@ uvicorn main:app --port 8000 --reload
 Run this sequence daily (or hourly) to fetch the latest fires, apply the spatial net, and run the AI imagery classification.
 ```
 cd main
-
-# 1. Ingest live NASA data and assign baseline confidence
+# 1. This is to ingest live NASA data and assign baseline confidence
 python fetch_active_firms.py
+```
+In fetch_active_firms.py at line 16 exists the "FIRMS_URL". There exists a single digit number at the end of the URL; this represents the number of days of data you download. The range for it is 1 to 5, and you can update this number to get FIRMS detected active fires for the last 24 hours or 5 days.
 
+If you run the above command in the morning, before 3:30 PM in the afternoon as per Indian Standard Time with the single digit at the end of the URL as 1, you will receive 0 active fires. This is because NASA FIRMS has not yet preprocessed the information from its satellites, and the American 24-hour cycle ends at 10:30 AM IST. So, you can change the digit at the end to 2 and you will get all FIRMS detected active fires in the last 24 hours.
+
+After fetch_active_firms.py finishes execution, continue in the same terminal with the following:
+```
 # 2. Catch unnamed facilities using local PostGIS polygons
 python resolve_facility_names.py
 
@@ -112,7 +117,6 @@ python -m http.server 3000
 View Dashboard: Open http://localhost:3000 in your web browser.
 
 ---
-
 ## Archiving System
 The repository includes a storage system to guarantee prior classifications are always availabel for review or other purposes, bypassing the need to rerun the pipeline for prior instances.
 
