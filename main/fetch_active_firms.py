@@ -13,7 +13,8 @@ engine = create_engine(f"postgresql+psycopg2://postgres:{quote_plus(db_password)
 
 FIRMS_MAP_KEY = os.getenv("FIRMS_MAP_KEY", "YOUR_NASA_API_KEY")
 INDIA_BBOX = "68.0,6.0,97.5,35.5" 
-FIRMS_URL = f"https://firms.modaps.eosdis.nasa.gov/api/area/csv/{FIRMS_MAP_KEY}/VIIRS_SNPP_NRT/{INDIA_BBOX}/3"
+FIRMS_URL = f"https://firms.modaps.eosdis.nasa.gov/api/area/csv/{FIRMS_MAP_KEY}/VIIRS_SNPP_NRT/{INDIA_BBOX}/1"
+# The singel digit at the end of the url above represents the number of days of data you doenload, the range for it is 1 to 5, you can update this number to get FIRMS active fires from the last 24 hours to 5 days ago.
 LOCAL_OSM_URL = "http://127.0.0.1:8001/api/osm/bulk-tag"
 BATCH_SIZE = 25
 
@@ -51,7 +52,11 @@ def fetch_and_store_fires():
         print(f"Failed to fetch FIRMS data: {e}")
         return
 
-    if df_firms.empty: return
+    if df_firms.empty:
+        print("found 0 fires")
+        return
+    else:
+        print(f"found {len(df_firms)} fires,")
 
     valid_india_fires = []
     with engine.connect() as conn:
@@ -71,6 +76,7 @@ def fetch_and_store_fires():
                 })
 
     total_india = len(valid_india_fires)
+    print(f"{total_india} Fires in India border.")
     if total_india == 0: return
 
     processed_count = 0
@@ -103,7 +109,7 @@ def fetch_and_store_fires():
                     source_type = "mining_activity"
                 elif is_ind:
                     source_type = "industrial_fire" if fire["frp_mw"] > 19000 else "gas_flare"
-            
+
                 conf_val = 1.0 - random.uniform(0.10, 0.30)
                 confidence = f"{conf_val * 100:.1f}%"
 

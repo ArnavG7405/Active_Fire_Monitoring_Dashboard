@@ -1,0 +1,14 @@
+fastapi
+uvicorn
+python-multipart
+sqlalchemy
+psycopg2-binary
+pandas
+requests
+python-dotenv
+onnxruntime
+numpy
+rasterio
+pystac-client
+planetary-computer
+opencv-python-headless
