@@ -18,9 +18,11 @@ This is a Prototype, The instructions and commands in this repository are to be 
 ### 1) System Requirements
 Python 3.10+
 
-PostgreSQL 14+ with the PostGIS extension installed and enabled.
+If you do not have PostgreSQL 14+ on your system visit https://www.postgresql.org/ and install in the installation process you will be prompted to create your password and to select extensions, select PostGIS and install it too. 
 
-NASA FIRMS API Key (Free tier).
+If you do have PostgreSQL 14+ on your sytem, make sure you have the PostGIS extension installed and enabled.
+
+For the NASA FIRMS API Key (Free tier) visit https://firms.modaps.eosdis.nasa.gov/api/map_key/ and click the "Get MAP_KEY" , enter a valid email id and you will recieve the api key in your email.
 
 ---
 ### 2) Clone & Environment Setup
@@ -62,7 +64,6 @@ Before running the live pipeline, you must build the PostGIS tables, load the In
 cd setup
 
 # 1. Initialize core tables
-psql -U postgres -h localhost -d firms_india_db -f init_db.sql
 python setup_spatial_db.py
 
 # 2. Load geographic boundaries
@@ -87,34 +88,17 @@ uvicorn osm_server:app --port 8001 --reload
 This serves the database contents to your frontend Leaflet dashboard.
 ```
 cd main
-uvicorn main:app --port 8000 --reload
+uvicorn main_server:app --port 8000 --reload
 ```
-### Terminal 3: Data Ingestion & AI Processing
-Run this sequence daily (or hourly) to fetch the latest fires, apply the spatial net, and run the AI imagery classification.
-```
-cd main
-# 1. This is to ingest live NASA data and assign baseline confidence
-python fetch_active_firms.py
-```
-In fetch_active_firms.py at line 16 exists the "FIRMS_URL". There exists a single digit number at the end of the URL; this represents the number of days of data you download. The range for it is 1 to 5, and you can update this number to get FIRMS detected active fires for the last 24 hours or 5 days.
-
-If you run the above command in the morning, before 3:30 PM in the afternoon as per Indian Standard Time with the single digit at the end of the URL as 1, you will receive 0 active fires. This is because NASA FIRMS has not yet preprocessed the information from its satellites, and the American 24-hour cycle ends at 10:30 AM IST. So, you can change the digit at the end to 2 and you will get all FIRMS detected active fires in the last 24 hours.
-
-After fetch_active_firms.py finishes execution, continue in the same terminal with the following:
-```
-# 2. Catch unnamed facilities using local PostGIS polygons
-python resolve_facility_names.py
-
-# 3. Download Sentinel-2 crops and run ONNX AI classification
-python batch_satelite_crops.py
-```
-### Terminal 4: Frontend Web Server
+### Terminal 3: Frontend Web Server
 Host the static dashboard files securely to avoid browser CORS errors.
 ```
 cd frontend
 python -m http.server 3000
 ```
 View Dashboard: Open http://localhost:3000 in your web browser.
+
+All three terminals need to be running for the application to work appropriately.
 
 ---
 ## Archiving System
@@ -126,6 +110,10 @@ cd main
 python save_demo_run.py
 # Prompt: Enter a name for this demo run (e.g., '1-day run on 9-14-26')
 ```
+
+If a Classification is not saved to the archive, it is lost and would require re-running of the pipelien and re-classification
+
+
 To Load a classification:
 ```
 cd main
