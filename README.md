@@ -88,7 +88,7 @@ uvicorn osm_server:app --port 8001 --reload
 This serves the database contents to your frontend Leaflet dashboard.
 ```
 cd main
-uvicorn main_server:app --port 8000 --reload
+uvicorn main:app --port 8000 --reload
 ```
 ### Terminal 3: Frontend Web Server
 Host the static dashboard files securely to avoid browser CORS errors.
