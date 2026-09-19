@@ -1,3 +1,4 @@
+import os
 from urllib.parse import quote_plus
 import geopandas as gpd
 from shapely.geometry import MultiPolygon
@@ -8,10 +9,10 @@ load_dotenv()
 db_password = os.getenv("DB_PASSWORD")
 
 engine = create_engine(
-    f"postgresql+psycopg2://postgres:{db_password}@localhost:5432/firms_india_db"
+    f"postgresql+psycopg2://postgres:{quote_plus(db_password)}@localhost:5432/firms_india_db"
 )
 
-print("Downloading India boundary GeoJSON (this might take a few seconds)...")
+print("Downloading India boundary GeoJSON (this might take a few moments)...")
 url = "https://raw.githubusercontent.com/datameet/maps/master/Country/india-composite.geojson"
 gdf = gpd.read_file(url)
 
@@ -26,4 +27,4 @@ gdf_final = gdf[["name", "geom"]]
 print("Inserting into PostGIS database...")
 gdf_final.to_postgis("india_boundary", engine, if_exists="append", index=False)
 
-print("Successfully loaded India's sovereign boundary!")
+print("Successfully loaded India's sovereign boundary.")

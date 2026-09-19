@@ -20,17 +20,6 @@ out geom;
 """
 
 def populate_mining_zones():
-    with engine.begin() as conn:
-        conn.execute(text("""
-            CREATE TABLE IF NOT EXISTS mining_zones (
-                id SERIAL PRIMARY KEY,
-                name VARCHAR(255),
-                facility_type VARCHAR(100),
-                geom geometry(Polygon, 4326)
-            );
-            CREATE INDEX IF NOT EXISTS idx_mining_zones_geom ON mining_zones USING GIST (geom);
-        """))
-
     print("Querying Overpass API for mining footprints in India...")
     headers = {"User-Agent": "Geospatial-Fire-Pipeline/1.0", "Accept": "*/*"}
     
@@ -74,7 +63,7 @@ def populate_mining_zones():
             else:
                 duplicate_count += 1
 
-    print(f"\nCOMPLETE: {added_count} New Mines added. {duplicate_count} PostGIS duplicates blocked.")
+    print(f"COMPLETE: {added_count} New Mines added. {duplicate_count} PostGIS duplicates blocked.")
 
 if __name__ == "__main__":
     populate_mining_zones()

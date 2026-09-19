@@ -1,65 +1,66 @@
-const API_BASE_URL = "http://127.0.0.1:8000";
-let globalFires = []; 
-let geoJsonLayer;
+var API_BASE_URL = "http://127.0.0.1:8000"; 
+var globalFires = []; 
+var geoJsonLayer;
 
-const STATE_VIEWS = {
-    "Andaman and Nicobar Islands": { center: [11.7401, 92.6586], zoom: 6 },
+var STATE_VIEWS = {
     "Andhra Pradesh": { center: [15.9129, 79.7400], zoom: 6 },
     "Arunachal Pradesh": { center: [28.2180, 94.7278], zoom: 7 },
     "Assam": { center: [26.2006, 92.9376], zoom: 7 },
     "Bihar": { center: [25.0961, 85.3131], zoom: 7 },
-    "Chandigarh": { center: [30.7333, 76.7794], zoom: 11 },
-    "Chhattisgarh": { center: [21.2787, 81.8661], zoom: 7 },
-    "Dadra and Nagar Haveli and Daman and Diu": { center: [20.4283, 72.8397], zoom: 9 },
-    "Delhi": { center: [28.7041, 77.1025], zoom: 10 },
+    "Chhattisgarh": { center: [21.2787, 81.8661], zoom: 6 },
     "Goa": { center: [15.2993, 74.1240], zoom: 9 },
-    "Gujarat": { center: [22.2587, 71.1924], zoom: 7 },
+    "Gujarat": { center: [22.2587, 71.1924], zoom: 6 },
     "Haryana": { center: [29.0588, 76.0856], zoom: 7 },
-    "Himachal Pradesh": { center: [31.1048, 77.1734], zoom: 7 },
-    "Jammu and Kashmir": { center: [33.7782, 76.5762], zoom: 7 },
+    "Himachal Pradesh": { center: [31.1048, 77.1666], zoom: 7 },
     "Jharkhand": { center: [23.6102, 85.2799], zoom: 7 },
-    "Karnataka": { center: [15.3173, 75.7139], zoom: 7 },
+    "Karnataka": { center: [15.3173, 75.7139], zoom: 6 },
     "Kerala": { center: [10.8505, 76.2711], zoom: 7 },
-    "Ladakh": { center: [34.1526, 77.5771], zoom: 7 },
-    "Lakshadweep": { center: [10.5667, 72.6417], zoom: 7 },
     "Madhya Pradesh": { center: [22.9734, 78.6569], zoom: 6 },
     "Maharashtra": { center: [19.7515, 75.7139], zoom: 6 },
     "Manipur": { center: [24.6637, 93.9063], zoom: 8 },
     "Meghalaya": { center: [25.4670, 91.3662], zoom: 8 },
     "Mizoram": { center: [23.1645, 92.9376], zoom: 8 },
     "Nagaland": { center: [26.1584, 94.5624], zoom: 8 },
-    "Odisha": { center: [20.9517, 85.0985], zoom: 7 },
-    "Puducherry": { center: [11.9416, 79.8083], zoom: 10 },
+    "Odisha": { center: [20.9517, 85.0985], zoom: 6 },
     "Punjab": { center: [31.1471, 75.3412], zoom: 7 },
     "Rajasthan": { center: [27.0238, 74.2179], zoom: 6 },
-    "Sikkim": { center: [27.5330, 88.5122], zoom: 8 },
+    "Sikkim": { center: [27.5330, 88.5122], zoom: 9 },
     "Tamil Nadu": { center: [11.1271, 78.6569], zoom: 6 },
-    "Telangana": { center: [18.1124, 79.0193], zoom: 7 },
+    "Telangana": { center: [18.1124, 79.0193], zoom: 6 },
     "Tripura": { center: [23.9408, 91.9882], zoom: 8 },
     "Uttar Pradesh": { center: [26.8467, 80.9462], zoom: 6 },
     "Uttarakhand": { center: [30.0668, 79.0193], zoom: 7 },
-    "West Bengal": { center: [22.9868, 87.8550], zoom: 7 }
+    "West Bengal": { center: [22.9868, 87.8550], zoom: 6 }
 };
 
-const map = L.map('map', { zoomControl: false }).setView([22.0, 79.0], 5);
-L.control.zoom({ position: 'bottomleft' }).addTo(map);
+var mapContainer = L.DomUtil.get('map');
+if (mapContainer != null) {
+    mapContainer._leaflet_id = null;
+}
 
-const tiles = {
+var map = L.map('map', { zoomControl: false }).setView([22.0, 79.0], 5);
+L.control.zoom({ position: 'bottomright' }).addTo(map);
+
+var tiles = {
     standard: L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 18 }),
     satellite: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 18 })
 };
 tiles.standard.addTo(map);
 
-document.addEventListener("DOMContentLoaded", () => {
-    fetch(`${API_BASE_URL}/api/fires/india`)
-        .then(res => res.json())
-        .then(data => {
-            if (!data.features) return;
-            globalFires = data.features;
-            
-            initializeStatistics(globalFires);
-            updateDashboard(globalFires);
+function initDashboard() {
+    setTimeout(() => {
+        map.invalidateSize();
+        fetchFiresData();
+        startClock();
+        fetchArchiveList();
+    }, 300);
+
+    var menuBtn = document.getElementById("menu-btn");
+    if (menuBtn) {
+        menuBtn.addEventListener("click", () => {
+            document.getElementById("menu-content").classList.toggle("hidden");
         });
+    }
 
     document.getElementById("category-filter").addEventListener("change", applyFilters);
     document.getElementById("state-filter").addEventListener("change", applyFilters);
@@ -70,89 +71,97 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     document.getElementById("map-style").addEventListener("change", (e) => {
-        const style = e.target.value;
+        var style = e.target.value;
         map.removeLayer(tiles.standard);
         map.removeLayer(tiles.satellite);
-        const mapContainer = document.getElementById("map");
+        var mapDiv = document.getElementById("map");
 
         if (style === "satellite") {
             tiles.satellite.addTo(map);
-            mapContainer.classList.remove("high-contrast-map");
+            mapDiv.classList.remove("high-contrast-map");
         } else if (style === "high-contrast") {
             tiles.standard.addTo(map);
-            mapContainer.classList.add("high-contrast-map");
+            mapDiv.classList.add("high-contrast-map");
         } else {
             tiles.standard.addTo(map);
-            mapContainer.classList.remove("high-contrast-map");
-        }
-    });
-});
-
-function initializeStatistics(features) {
-    let controlled = 0, unintended = 0;
-    
-    features.forEach(f => {
-        const type = f.properties.source_type;
-        if (type === "gas_flare" || type === "mining_activity") {
-            controlled++;
-        } else if (type === "wildfire" || type === "agricultural_burning" || type === "industrial_fire") {
-            unintended++;
+            mapDiv.classList.remove("high-contrast-map");
         }
     });
 
-    document.getElementById("stat-total").innerText = features.length;
-    document.getElementById("stat-controlled").innerText = controlled;
-    document.getElementById("stat-unintended").innerText = unintended;
-    
-    const maxFrp = features.length > 0 ? Math.max(...features.map(f => f.properties.frp_mw || 0)) : 0;
-    document.getElementById("max-frp-label").innerText = `Max FRP: ${maxFrp.toFixed(1)} k MW`;
-}
+    document.getElementById("btn-check-new").addEventListener("click", () => {
+        var oldIds = new Set(globalFires.map(f => f.properties.id));
+        
+        showNotification("Running pipeline... Please wait. This may take a few moments.");
+        fetch(`${API_BASE_URL}/api/run-pipeline`, { method: "POST" })
+            .then(res => res.json())
+            .then(() => {
+                fetch(`${API_BASE_URL}/api/fires/india`)
+                    .then(res => res.json())
+                    .then(data => {
+                        if (!data.features) return;
+                        globalFires = data.features;
+                        
+                        var newFiresCount = globalFires.filter(f => !oldIds.has(f.properties.id)).length;
+                        
+                        initializeStatistics(globalFires);
+                        updateDashboard(globalFires);
+                        populateActiveFiresMenu(globalFires);
 
-function applyFilters() {
-    const category = document.getElementById("category-filter").value;
-    const state = document.getElementById("state-filter").value;
-    const minFrp = parseFloat(document.getElementById("frp-filter").value) || 0;
-
-    const filtered = globalFires.filter(f => {
-        const matchCat = category === "all" || f.properties.source_type === category;
-        const matchState = state === "all" || f.properties.state === state;
-        const matchFrp = (f.properties.frp_mw || 0) >= minFrp;
-        return matchCat && matchState && matchFrp;
+                        if (newFiresCount > 0) {
+                            showNotification(`${newFiresCount} new fires detected`);
+                        } else {
+                            showNotification("0 new fires detected");
+                        }
+                    });
+            });
     });
 
-    updateDashboard(filtered);
-
-    if (state !== "all" && STATE_VIEWS[state]) {
-        map.flyTo(STATE_VIEWS[state].center, STATE_VIEWS[state].zoom, { duration: 1.5 });
-    } else {
-        map.flyTo([22.0, 79.0], 5, { duration: 1.5 });
-    }
-}
-
-function updateDashboard(features) {
-    if (geoJsonLayer) map.removeLayer(geoJsonLayer);
-
-    geoJsonLayer = L.geoJSON(features, {
-        pointToLayer: (feature, latlng) => {
-            let color = "#ff0000"; 
-            const type = feature.properties.source_type;
-            if (type === "industrial_fire") color = "#800080"; 
-            if (type === "gas_flare") color = "#ffa500";       
-            if (type === "mining_activity") color = "#000000"; 
-            if (type === "agricultural_burning") color = "#008000";
-
-            return L.circleMarker(latlng, { radius: 7, fillColor: color, color: "#fff", weight: 1.5, opacity: 1, fillOpacity: 0.9 });
-        }
+    document.getElementById("btn-save-archive").addEventListener("click", () => {
+        fetch(`${API_BASE_URL}/api/archive/save`, { method: "POST" })
+            .then(res => res.json())
+            .then(data => {
+                showNotification(`saved to archive as "${data.run_name}"`);
+                fetchArchiveList();
+            });
     });
-    
-    geoJsonLayer.on('click', (e) => openDrawer(e.layer.feature.properties));
-    geoJsonLayer.addTo(map);
 }
 
-function openDrawer(props) {
+if (document.readyState === 'loading') {
+    document.addEventListener("DOMContentLoaded", initDashboard);
+} else {
+    initDashboard(); 
+}
+
+window.toggleSubmenu = function(id) {
+    var el = document.getElementById(id);
+    if (el) el.classList.toggle("hidden");
+};
+
+window.flyToFire = function(lat, lon, id) {
+    map.flyTo([lat, lon], 12, { duration: 1.5 });
+    var fire = globalFires.find(f => f.properties.id === id);
+    if (fire) window.openDrawer(fire.properties);
+};
+
+window.loadArchive = function(name) {
+    var formData = new FormData();
+    formData.append("run_name", name);
+    
+    fetch(`${API_BASE_URL}/api/archive/load`, {
+        method: "POST",
+        body: formData
+    })
+    .then(res => res.json())
+    .then(() => {
+        showNotification(`Loaded Archive: ${name}`);
+        fetchFiresData();
+    });
+};
+
+window.openDrawer = function(props) {
     document.getElementById("side-drawer").classList.remove("hidden");
     
-    let displayType = "WILDFIRE";
+    var displayType = "WILDFIRE";
     if (props.source_type) {
         if (props.source_type === "industrial_fire") {
             displayType = "INDUSTRIAL DISASTER";
@@ -161,9 +170,9 @@ function openDrawer(props) {
         }
     }
     
-    const zoneBadge = props.is_industrial ? `<span class="tag-badge">Industrial Zone</span>` : props.is_mining ? `<span class="tag-badge">Mining Zone</span>` : "";
-    const city = props.city && props.city !== "Unknown" ? props.city : "Unknown";
-    const state = props.state && props.state !== "Unknown" ? props.state : "Unknown";
+    var zoneBadge = props.is_industrial ? `<span class="tag-badge">Industrial Zone</span>` : props.is_mining ? `<span class="tag-badge">Mining Zone</span>` : "";
+    var city = props.city && props.city !== "Unknown" ? props.city : "Unknown";
+    var state = props.state && props.state !== "Unknown" ? props.state : "Unknown";
 
     document.getElementById("drawer-content").innerHTML = `
         <div class="data-row">
@@ -196,4 +205,174 @@ function openDrawer(props) {
             <div class="data-value">ID: ${props.id} <br> ${parseFloat(props.latitude).toFixed(4)}, ${parseFloat(props.longitude).toFixed(4)}</div>
         </div>
     `;
+};
+
+function showNotification(message) {
+    var toast = document.getElementById("notification-toast");
+    toast.innerText = message;
+    toast.classList.remove("hidden", "fade-out");
+
+    setTimeout(() => {
+        toast.classList.add("fade-out");
+        setTimeout(() => toast.classList.add("hidden"), 500); 
+    }, 45000); 
+}
+
+function fetchFiresData() {
+    fetch(`${API_BASE_URL}/api/fires/india`)
+        .then(res => res.json())
+        .then(data => {
+            if (!data.features) return;
+            globalFires = data.features;
+            
+            initializeStatistics(globalFires);
+            updateDashboard(globalFires);
+            populateActiveFiresMenu(globalFires);
+
+            if (geoJsonLayer && geoJsonLayer.getLayers().length > 0) {
+                setTimeout(() => map.fitBounds(geoJsonLayer.getBounds(), { padding: [20, 20], maxZoom: 6 }), 200);
+            }
+        })
+        .catch(err => console.error("Failed to fetch map data:", err));
+}
+
+function startClock() {
+    function updateClock() {
+        var now = new Date();
+        document.getElementById("clock-time").innerText = now.toLocaleTimeString();
+        document.getElementById("clock-date").innerText = now.toLocaleDateString();
+    }
+    setInterval(updateClock, 1000);
+    updateClock();
+}
+
+function populateActiveFiresMenu(features) {
+    var cats = {
+        "industrial_fire": "Industrial Disasters",
+        "gas_flare": "Gas Flares",
+        "mining_activity": "Mining Activity",
+        "agricultural_burning": "Agricultural Burns",
+        "wildfire": "Wildfires"
+    };
+
+    var html = "";
+    for (const [key, label] of Object.entries(cats)) {
+        var matchingFires = features.filter(f => f.properties.source_type === key);
+        html += `<div class="submenu-category" onclick="window.toggleSubmenu('${key}-submenu')">${label} (${matchingFires.length}) <span class="arrow">&#9660;</span></div>`;
+        html += `<div id="${key}-submenu" class="hidden sub-submenu">`;
+        matchingFires.forEach(f => {
+            var city = f.properties.city || "Unknown";
+            var state = f.properties.state || "Unknown";
+            html += `<div class="fire-item" onclick="window.flyToFire(${f.geometry.coordinates[1]}, ${f.geometry.coordinates[0]}, ${f.properties.id})">Fire in ${city}, ${state} detected at ${f.properties.detected_at}</div>`;
+        });
+        html += `</div>`;
+    }
+    document.getElementById("active-fires-wrapper").innerHTML = html;
+}
+
+function fetchArchiveList() {
+    fetch(`${API_BASE_URL}/api/archive/list`)
+        .then(res => res.json())
+        .then(data => {
+            var html = "";
+            data.archives.forEach(name => {
+                html += `<div class="fire-item" onclick="window.loadArchive('${name}')">${name}</div>`;
+            });
+            document.getElementById("archive-store-wrapper").innerHTML = html;
+        });
+}
+
+function initializeStatistics(features) {
+    var controlled = 0, unintended = 0;
+    
+    features.forEach(f => {
+        var type = f.properties.source_type;
+        if (type === "gas_flare" || type === "mining_activity") {
+            controlled++;
+        } else if (type === "wildfire" || type === "agricultural_burning" || type === "industrial_fire") {
+            unintended++;
+        }
+    });
+
+    document.getElementById("stat-total").innerText = features.length;
+    document.getElementById("stat-controlled").innerText = controlled;
+    document.getElementById("stat-unintended").innerText = unintended;
+    
+    var maxFrp = features.length > 0 ? Math.max(...features.map(f => f.properties.frp_mw || 0)) : 0;
+    document.getElementById("max-frp-label").innerText = `Max FRP: ${maxFrp.toFixed(1)} k MW`;
+}
+
+function applyFilters() {
+    var category = document.getElementById("category-filter").value;
+    var state = document.getElementById("state-filter").value;
+    var minFrp = parseFloat(document.getElementById("frp-filter").value) || 0;
+
+    var filtered = globalFires.filter(f => {
+        var matchCat = category === "all" || f.properties.source_type === category;
+        var matchState = state === "all" || f.properties.state === state;
+        var matchFrp = (f.properties.frp_mw || 0) >= minFrp;
+        return matchCat && matchState && matchFrp;
+    });
+
+    updateDashboard(filtered);
+
+    if (state !== "all" && STATE_VIEWS[state]) {
+        map.flyTo(STATE_VIEWS[state].center, STATE_VIEWS[state].zoom, { duration: 1.5 });
+    } else if (state === "all") {
+        map.flyTo([22.0, 79.0], 5, { duration: 1.5 });
+    }
+}
+
+function updateDashboard(features) {
+    map.invalidateSize();
+    
+    if (geoJsonLayer) map.removeLayer(geoJsonLayer);
+
+    var validFeatures = [];
+    features.forEach(f => {
+        if (f.geometry && f.geometry.coordinates) {
+            var lon = parseFloat(f.geometry.coordinates[0]);
+            var lat = parseFloat(f.geometry.coordinates[1]);
+            
+            if (!isNaN(lon) && !isNaN(lat) && lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180) {
+                f.geometry.coordinates = [lon, lat];
+                validFeatures.push(f);
+            }
+        }
+    });
+
+    var featureCollection = {
+        "type": "FeatureCollection",
+        "features": validFeatures
+    };
+
+    geoJsonLayer = L.geoJSON(featureCollection, {
+        pointToLayer: (feature, latlng) => {
+            var type = feature.properties.source_type;
+            
+            if (type === "wildfire" || type === "agricultural_burning" || type === "industrial_fire") {
+                var pulseClass = "pulse-wildfire";
+                if (type === "industrial_fire") pulseClass = "pulse-industrial";
+                if (type === "agricultural_burning") pulseClass = "pulse-agricultural";
+
+                return L.marker(latlng, {
+                    icon: L.divIcon({
+                        className: `custom-div-icon ${pulseClass}`,
+                        iconSize: [14, 14],
+                        iconAnchor: [7, 7]
+                    })
+                });
+            } else {
+                var color = type === "gas_flare" ? "#ffa500" : "#000000"; 
+                return L.circleMarker(latlng, { radius: 7, fillColor: color, color: "#fff", weight: 1.5, opacity: 1, fillOpacity: 0.9 });
+            }
+        }
+    });
+    
+    geoJsonLayer.on('click', (e) => {
+        var props = e.layer.feature.properties;
+        window.flyToFire(props.latitude, props.longitude, props.id);
+    });
+    
+    geoJsonLayer.addTo(map);
 }

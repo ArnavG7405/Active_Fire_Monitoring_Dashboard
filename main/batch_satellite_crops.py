@@ -125,11 +125,10 @@ for idx, feature in enumerate(features, 1):
 
     time.sleep(COOLDOWN_SECONDS)
 
+print("\n Re-evaluating remaining unclassified targets...")
 with engine.begin() as conn:
     sweep_result = conn.execute(text("""
         UPDATE active_fires 
         SET source_type = 'wildfire' 
         WHERE source_type = 'pending_ai' OR source_type IS NULL
     """))
-        
-print(f" BATCH COMPLETE: AI Processed {processed} new fires. Skipped {skipped} pre-classified fires.")

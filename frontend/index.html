@@ -8,6 +8,25 @@
     <link rel="stylesheet" href="main.css" />
 </head>
 <body>
+    <!-- Hamburger Menu -->
+    <div id="hamburger-menu">
+        <button id="menu-btn">&#9776;</button>
+        <div id="menu-content" class="hidden">
+            <div class="menu-item" onclick="window.toggleSubmenu('active-fires-wrapper')">Active fires <span class="arrow">&#9660;</span></div>
+            <div id="active-fires-wrapper" class="hidden submenu">
+                <!-- Dynamically populated by app.js -->
+            </div>
+            
+            <div class="menu-item" id="btn-check-new">Check for new active fires</div>
+            <div class="menu-item" id="btn-save-archive">Save data to archive</div>
+            
+            <div class="menu-item" onclick="window.toggleSubmenu('archive-store-wrapper')">Archive Store <span class="arrow">&#9660;</span></div>
+            <div id="archive-store-wrapper" class="hidden submenu">
+                <!-- Dynamically populated by app.js -->
+            </div>
+        </div>
+    </div>
+
     <!-- Top Statistics Strip -->
     <div id="top-bar">
         <div class="stat-box">Total Fires: <span id="stat-total">0</span></div>
@@ -33,25 +52,18 @@
             <label for="state-filter">State:</label>
             <select id="state-filter" class="dropdown">
                 <option value="all">All of India</option>
-                <option value="Andaman and Nicobar Islands">Andaman and Nicobar Islands</option>
                 <option value="Andhra Pradesh">Andhra Pradesh</option>
                 <option value="Arunachal Pradesh">Arunachal Pradesh</option>
                 <option value="Assam">Assam</option>
                 <option value="Bihar">Bihar</option>
-                <option value="Chandigarh">Chandigarh</option>
                 <option value="Chhattisgarh">Chhattisgarh</option>
-                <option value="Dadra and Nagar Haveli and Daman and Diu">Dadra and Nagar Haveli and Daman and Diu</option>
-                <option value="Delhi">Delhi</option>
                 <option value="Goa">Goa</option>
                 <option value="Gujarat">Gujarat</option>
                 <option value="Haryana">Haryana</option>
                 <option value="Himachal Pradesh">Himachal Pradesh</option>
-                <option value="Jammu and Kashmir">Jammu and Kashmir</option>
                 <option value="Jharkhand">Jharkhand</option>
                 <option value="Karnataka">Karnataka</option>
                 <option value="Kerala">Kerala</option>
-                <option value="Ladakh">Ladakh</option>
-                <option value="Lakshadweep">Lakshadweep</option>
                 <option value="Madhya Pradesh">Madhya Pradesh</option>
                 <option value="Maharashtra">Maharashtra</option>
                 <option value="Manipur">Manipur</option>
@@ -59,7 +71,6 @@
                 <option value="Mizoram">Mizoram</option>
                 <option value="Nagaland">Nagaland</option>
                 <option value="Odisha">Odisha</option>
-                <option value="Puducherry">Puducherry</option>
                 <option value="Punjab">Punjab</option>
                 <option value="Rajasthan">Rajasthan</option>
                 <option value="Sikkim">Sikkim</option>
@@ -83,23 +94,31 @@
 
     <!-- Main Content Layout -->
     <div id="dashboard-container">
-        <!-- Control Panel -->
         <div id="controls-panel">
             <select id="map-style" class="dropdown">
                 <option value="standard">Standard Map</option>
-                <option value="high-contrast">Dark Mode Map</option>
-                <option value="satellite">Satellite Imagery Map</option>
+                <option value="high-contrast">High Contrast</option>
+                <option value="satellite">Satellite Imagery</option>
             </select>
         </div>
 
         <!-- Dynamic Side Drawer -->
         <div id="side-drawer" class="hidden">
-            <button id="close-drawer">✕ Close</button>
+            <button id="close-drawer">Close X</button>
             <div id="drawer-content"></div>
         </div>
 
         <div id="map"></div>
     </div>
+
+    <!-- Live Clock Display -->
+    <div id="clock-container">
+        <div id="clock-time">--:--:--</div>
+        <div id="clock-date">--/--/----</div>
+    </div>
+
+    <!-- Notification Toast -->
+    <div id="notification-toast" class="hidden"></div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="app.js"></script>

@@ -1,8 +1,11 @@
 import os
 import io
+import sys
 import json
+import subprocess
 import numpy as np
 import pandas as pd
+from datetime import datetime
 from fastapi import FastAPI, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -11,7 +14,7 @@ from sqlalchemy import create_engine, text
 import onnxruntime as ort
 from dotenv import load_dotenv
 
-app = FastAPI(title="AI Geospatial System for Industrial Fires API")
+app = FastAPI(title="Fire Dashboard API")
 
 app.add_middleware(
     CORSMiddleware,
@@ -89,11 +92,17 @@ def get_live_fires():
     
     features = []
     for _, row in df.iterrows():
+        try:
+            lon_val = float(row['longitude'])
+            lat_val = float(row['latitude'])
+        except (ValueError, TypeError):
+            continue
+            
         feature = {
             "type": "Feature",
             "geometry": {
                 "type": "Point",
-                "coordinates": [row['longitude'], row['latitude']]
+                "coordinates": [lon_val, lat_val]
             },
             "properties": row.to_dict()
         }
@@ -125,3 +134,48 @@ async def predict_fire_type(fire_id: int = Form(...), file: UploadFile = File(..
                      {"cls": final_class, "conf": f"{confidence * 100:.1f}%", "id": fire_id})
 
     return {"fire_id": fire_id, "confidence": round(confidence, 3), "ai_classification": final_class}
+
+@app.post("/api/run-pipeline")
+def run_pipeline():
+    subprocess.run([sys.executable, "fetch_active_firms.py"])
+    subprocess.run([sys.executable, "resolve_facility_names.py"])
+    subprocess.run([sys.executable, "batch_satellite_crops.py"])
+    return {"status": "success"}
+
+@app.post("/api/archive/save")
+def save_archive():
+    run_name = datetime.now().strftime("Active fires on %b %d, %Y, %I:%M %p")
+    with engine.begin() as conn:
+        conn.execute(text("CREATE TABLE IF NOT EXISTS demo_archives (LIKE active_fires);"))
+        conn.execute(text("ALTER TABLE demo_archives ADD COLUMN IF NOT EXISTS run_name VARCHAR(255);"))
+        
+        conn.execute(text("ALTER TABLE demo_archives ALTER COLUMN id TYPE BIGINT;"))
+        
+        conn.execute(text("ALTER TABLE demo_archives DROP CONSTRAINT IF EXISTS demo_archives_pkey;"))
+        conn.execute(text("DELETE FROM demo_archives WHERE run_name = :name"), {"name": run_name})
+        conn.execute(text("""
+            INSERT INTO demo_archives (id, geom, latitude, longitude, brightness_kelvin, frp_mw, detected_at, is_industrial, is_mining, facility_name, city, state, source_type, confidence, run_name)
+            SELECT id, geom, latitude, longitude, brightness_kelvin, frp_mw, detected_at, is_industrial, is_mining, facility_name, city, state, source_type, confidence, :name
+            FROM active_fires;
+        """), {"name": run_name})
+    return {"status": "success", "run_name": run_name}
+
+@app.get("/api/archive/list")
+def list_archives():
+    try:
+        with engine.connect() as conn:
+            runs = conn.execute(text("SELECT DISTINCT run_name FROM demo_archives ORDER BY run_name DESC")).fetchall()
+        return {"archives": [r[0] for r in runs]}
+    except Exception:
+        return {"archives": []}
+
+@app.post("/api/archive/load")
+def load_archive(run_name: str = Form(...)):
+    with engine.begin() as conn:
+        conn.execute(text("TRUNCATE TABLE active_fires;"))
+        conn.execute(text("""
+            INSERT INTO active_fires (id, geom, latitude, longitude, brightness_kelvin, frp_mw, detected_at, is_industrial, is_mining, facility_name, city, state, source_type, confidence)
+            SELECT id, geom, latitude, longitude, brightness_kelvin, frp_mw, detected_at, is_industrial, is_mining, facility_name, city, state, source_type, confidence
+            FROM demo_archives WHERE run_name = :name;
+        """), {"name": run_name})
+    return {"status": "success"}

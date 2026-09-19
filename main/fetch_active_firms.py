@@ -1,8 +1,10 @@
 import os
 import time
 import random
+import hashlib
 import pandas as pd
 import requests
+from datetime import datetime, timedelta, timezone, time as dt_time
 from sqlalchemy import create_engine, text
 from urllib.parse import quote_plus
 from dotenv import load_dotenv
@@ -13,15 +15,17 @@ engine = create_engine(f"postgresql+psycopg2://postgres:{quote_plus(db_password)
 
 FIRMS_MAP_KEY = os.getenv("FIRMS_MAP_KEY", "YOUR_NASA_API_KEY")
 INDIA_BBOX = "68.0,6.0,97.5,35.5" 
-FIRMS_URL = f"https://firms.modaps.eosdis.nasa.gov/api/area/csv/{FIRMS_MAP_KEY}/VIIRS_SNPP_NRT/{INDIA_BBOX}/1"
-# The singel digit at the end of the url above represents the number of days of data you doenload, the range for it is 1 to 5, you can update this number to get FIRMS active fires from the last 24 hours to 5 days ago.
 LOCAL_OSM_URL = "http://127.0.0.1:8001/api/osm/bulk-tag"
 BATCH_SIZE = 25
+
+def generate_fire_id(lat, lon, detected_at):
+    unique_str = f"{lat}_{lon}_{detected_at}"
+    return int(hashlib.md5(unique_str.encode()).hexdigest()[:8], 16)
 
 def reverse_geocode(lat, lon):
     try:
         url = f"https://nominatim.openstreetmap.org/reverse?format=json&lat={lat}&lon={lon}&zoom=10"
-        headers = {"User-Agent": "Geospatial-Fire-Pipeline/2.0 (research)"}
+        headers = {"User-Agent": "Geospatial-Fire-Pipeline/2.0"}
         resp = requests.get(url, headers=headers, timeout=10)
         
         if resp.status_code == 200:
@@ -40,48 +44,95 @@ def fetch_and_store_fires():
         conn.execute(text("ALTER TABLE active_fires ADD COLUMN IF NOT EXISTS city VARCHAR(100);"))
         conn.execute(text("ALTER TABLE active_fires ADD COLUMN IF NOT EXISTS state VARCHAR(100);"))
         conn.execute(text("ALTER TABLE active_fires ADD COLUMN IF NOT EXISTS confidence VARCHAR(20);"))
+        conn.execute(text("ALTER TABLE active_fires ALTER COLUMN id TYPE BIGINT;"))
         
-    print(" Step 1: Purging old fires from previous runs...")
+    ist_now = datetime.now(timezone.utc) + timedelta(hours=5, minutes=30)
+    today_ist = ist_now.date()
+    today_ist_str = today_ist.strftime("%Y-%m-%d")
+
+    cutoff_ist = datetime.combine(today_ist, dt_time(0, 0))
+
     with engine.begin() as conn:
-        conn.execute(text("TRUNCATE TABLE active_fires;"))
+        old_fires_exist = conn.execute(
+            text("SELECT EXISTS (SELECT 1 FROM active_fires WHERE CAST(detected_at AS TEXT) NOT LIKE :today)"), 
+            {"today": f"{today_ist_str}%"}
+        ).scalar()
         
-    print(" Step 2: Fetching live fires from NASA FIRMS API...")
-    try:
-        df_firms = pd.read_csv(FIRMS_URL)
-    except Exception as e:
-        print(f"Failed to fetch FIRMS data: {e}")
-        return
+        if old_fires_exist:
+            conn.execute(text("DELETE FROM active_fires WHERE CAST(detected_at AS TEXT) NOT LIKE :today"), {"today": f"{today_ist_str}%"})
 
-    if df_firms.empty:
-        print("found 0 fires")
-        return
-    else:
-        print(f"found {len(df_firms)} fires,")
-
-    valid_india_fires = []
     with engine.connect() as conn:
-        for idx, row in df_firms.iterrows():
-            lat, lon = float(row['latitude']), float(row['longitude'])
-            is_in_india = conn.execute(
-                text("SELECT EXISTS (SELECT 1 FROM india_boundary WHERE ST_Intersects(ST_SetSRID(ST_MakePoint(:lon, :lat), 4326), geom))"), 
-                {"lon": lon, "lat": lat}
-            ).scalar()
-            
-            if is_in_india:
-                valid_india_fires.append({
-                    "id": int(idx), "lat": lat, "lon": lon,
-                    "brightness": float(row.get('bright_ti4', 0)),
-                    "frp_mw": float(row.get('frp', 0)),
-                    "detected_at": str(row.get('acq_date', '')) + " " + str(row.get('acq_time', '')).zfill(4)
-                })
+        existing_df = pd.read_sql("SELECT id FROM active_fires", conn)
+        existing_ids = set(existing_df['id'].tolist())
 
-    total_india = len(valid_india_fires)
-    print(f"{total_india} Fires in India border.")
-    if total_india == 0: return
+    def get_valid_fires(window, enforce_cutoff):
+        url = f"https://firms.modaps.eosdis.nasa.gov/api/area/csv/{FIRMS_MAP_KEY}/VIIRS_SNPP_NRT/{INDIA_BBOX}/{window}"
+        try:
+            df_firms = pd.read_csv(url)
+        except Exception:
+            return []
+
+        if df_firms.empty:
+            return []
+
+        print(f"found {len(df_firms)} active fires.")
+
+        valid = []
+        with engine.connect() as conn:
+            for idx, row in df_firms.iterrows():
+                lat, lon = float(row['latitude']), float(row['longitude'])
+                
+                acq_date = str(row.get('acq_date', ''))
+                acq_time = str(row.get('acq_time', '')).zfill(4)
+                try:
+                    utc_dt = datetime.strptime(f"{acq_date} {acq_time}", "%Y-%m-%d %H%M")
+                    ist_dt = utc_dt + timedelta(hours=5, minutes=30)
+                except ValueError:
+                    continue
+                
+                if enforce_cutoff:
+                    if ist_dt < cutoff_ist:
+                        continue
+                else:
+                    if ist_dt.date() != today_ist:
+                        continue
+
+                detected_at_ist = ist_dt.strftime("%Y-%m-%d %H:%M")
+                
+                fire_id = generate_fire_id(lat, lon, detected_at_ist)
+                if fire_id in existing_ids:
+                    continue
+
+                is_in_india = conn.execute(
+                    text("SELECT EXISTS (SELECT 1 FROM india_boundary WHERE ST_Intersects(ST_SetSRID(ST_MakePoint(:lon, :lat), 4326), geom))"), 
+                    {"lon": lon, "lat": lat}
+                ).scalar()
+                
+                if is_in_india:
+                    valid.append({
+                        "id": fire_id, "lat": lat, "lon": lon,
+                        "brightness": float(row.get('bright_ti4', 0)),
+                        "frp_mw": float(row.get('frp', 0)),
+                        "detected_at": detected_at_ist
+                    })
+        
+        if len(valid) > 0:
+            print(f"{len(valid)} fires in india border.")
+            
+        return valid
+
+    valid_india_fires = get_valid_fires("1", enforce_cutoff=False)
+
+    if len(valid_india_fires) == 0:
+        valid_india_fires = get_valid_fires("2", enforce_cutoff=True)
+
+    total_new = len(valid_india_fires)
+    if total_new == 0: 
+        return
 
     processed_count = 0
     with engine.begin() as conn:
-        for i in range(0, total_india, BATCH_SIZE):
+        for i in range(0, total_new, BATCH_SIZE):
             batch = valid_india_fires[i:i + BATCH_SIZE]
             
             try:
@@ -95,6 +146,7 @@ def fetch_and_store_fires():
                 INSERT INTO active_fires 
                 (id, geom, latitude, longitude, brightness_kelvin, frp_mw, detected_at, is_industrial, is_mining, facility_name, city, state, source_type, confidence)
                 VALUES (:id, ST_SetSRID(ST_MakePoint(:lon, :lat), 4326), :lat, :lon, :brightness, :frp_mw, :detected_at, :is_ind, :is_mine, :name, :city, :state, :source_type, :confidence)
+                ON CONFLICT (id) DO NOTHING
             """)
 
             for fire in batch:
@@ -122,7 +174,7 @@ def fetch_and_store_fires():
                 })
 
             processed_count += len(batch)
-            print(f" Processed & Geocoded: {processed_count}/{total_india}")
+            print(f"{processed_count}/{total_new} preprocessed & geocoded")
 
 if __name__ == "__main__":
     fetch_and_store_fires()

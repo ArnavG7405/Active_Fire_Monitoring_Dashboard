@@ -42,6 +42,7 @@ def bulk_tag_fires(batch: FireBatch):
         query_lines.append(f'way["landuse"~"farmland|quarry|industrial"](around:600, {lat}, {lon});')
         query_lines.append(f'way["industrial"](around:600, {lat}, {lon});')
         query_lines.append(f'way["man_made"~"mineshaft|petroleum_well"](around:600, {lat}, {lon});')
+        query_lines.append(f'way["name"~"refinery",i](around:600, {lat}, {lon});')
 
     overpass_query = "[out:json][timeout:25];\n(\n  " + "\n  ".join(query_lines) + "\n);\nout bb;"
     
@@ -69,8 +70,10 @@ def bulk_tag_fires(batch: FireBatch):
                 facility_name = tags.get('name', 'Unnamed Facility')
                 landuse = tags.get('landuse', '')
                 man_made = tags.get('man_made', '')
+                
+                is_refinery = "refinery" in facility_name.lower()
 
-                if tags.get('industrial') in ['gas', 'oil_refinery'] or landuse == 'industrial' or man_made == 'petroleum_well':
+                if tags.get('industrial') in ['gas', 'oil_refinery'] or landuse == 'industrial' or man_made == 'petroleum_well' or is_refinery:
                     results[f['id']] = {"is_ind": True, "is_mine": False, "name": facility_name}
                 elif landuse == 'quarry' or man_made in ['mineshaft', 'adit']:
                     results[f['id']] = {"is_ind": False, "is_mine": True, "name": facility_name}
