@@ -131,3 +131,10 @@ python sql_console.py
 ```
 
 ---
+
+Made in collaboration with:- 
+@rajputpriyanshi330-prog
+@yaminitripathi2006-netizen
+@Vedannt22
+@ayuu-lab
+@muskanomre522-sys
