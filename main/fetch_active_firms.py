@@ -91,7 +91,7 @@ def fetch_and_store_fires():
                     continue
                 
                 if enforce_cutoff:
-                    if ist_dt < cutoff_ist:
+                    if ist_dt > cutoff_ist:
                         continue
                 else:
                     if ist_dt.date() != today_ist:
