@@ -62,6 +62,7 @@ FIRMS_MAP_KEY=your_nasa_firms_api_key
 Before running the live pipeline, you must build the PostGIS tables, load the India geographic boundary, and ingest the massive datasets of industrial and mining zones. Run these from the root directory.
 ```
 cd setup
+venv\Scripts\activate
 
 # 1. Initialize core tables
 python setup_spatial_db.py
@@ -82,12 +83,14 @@ To operate the live dashboard, you need to spin up the two local servers, then e
 This microservice handles heavy spatial querying to determine if a fire is inside an industrial/mining polygon
 ```
 cd main
+venv\Scripts\activate
 uvicorn osm_server:app --port 8001 --reload
 ```
 ### Terminal 2: FastAPI Backend Server
 This serves the database contents to your frontend Leaflet dashboard.
 ```
 cd main
+venv\Scripts\activate
 uvicorn main:app --port 8000 --reload
 ```
 ### Terminal 3: Frontend Web Server
@@ -104,30 +107,41 @@ All three terminals need to be running for the application to work appropriately
 ## Archiving System
 The repository includes a storage system to guarantee prior classifications are always availabel for review or other purposes, bypassing the need to rerun the pipeline for prior instances.
 
-To save classifications for later review:
+To save classifications Manually, without using the dasboard for later review:
 ```
 cd main
+venv\Scripts\activate
 python save_demo_run.py
-# Prompt: Enter a name for this demo run (e.g., '1-day run on 9-14-26')
 ```
-
+You will be Prompted to: Enter a name for this demo run (e.g., '1-day run on 9-14-26')
 If a Classification is not saved to the archive, it is lost and would require re-running of the pipelien and re-classification
 
 ---
 
 
-To Load a classification:
+To Load a classification Manually, without using the dasboard:
 ```
 cd main
+venv\Scripts\activate
 python load_demo_run.py
 ```
+Enter the Serial Number assigned to the name of the classification, you wish to review.
+
 ---
 
 ## Database Management
 To inspect your data or run manual queries,you can use the included secure SQL console shortcut:
 ```
 cd main
+venv\Scripts\activate
 python sql_console.py
 ```
 
 ---
+
+Made in collaboration with:- 
+@rajputpriyanshi330-prog
+@yaminitripathi2006-netizen
+@Vedannt22
+@ayuu-lab
+@muskanomre522-sys
